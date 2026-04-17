@@ -34,6 +34,9 @@
         <div class="pill">Realtime • Friends • Invites • Rematch • Fast UI</div>
 
         <div class="profileBox">
+          <button id="soundToggleBtn" class="profileBtn" title="Toggle sound">
+            🔊
+          </button>
           <button id="profileBtn" class="profileBtn">
             <span id="topAvatar" class="avatar avatar-mini">U</span>
             <span id="topName">Player</span>
@@ -65,8 +68,8 @@
 
       <h1>Guess Duel</h1>
       <p>
-        Two players create or join a room, set secret numbers, and take turns guessing.
-        Chat, rematch, friend requests, direct invites, live timer, and score tracking included.
+        Challenge friends in this fast-paced number guessing game! Set your secret number, take turns guessing, and chat in real-time.
+        Features include live timers, rematches, friend invites, and score tracking.
       </p>
     </section>
 
@@ -143,13 +146,14 @@
           </div>
 
           <ul class="featureList">
-            <li>Auto profile bootstrap so “save profile first” does not block the app</li>
-            <li>No interval polling; Supabase realtime updates only</li>
-            <li>Live 10 second turn timer</li>
-            <li>Message sound</li>
-            <li>Direct friend invites</li>
-            <li>Rematch vote system</li>
-            <li>Scoreboard and win/loss updates</li>
+            <li>🚀 Auto profile setup - no blocking setup required</li>
+            <li>⚡ Realtime updates - no polling, instant sync</li>
+            <li>⏱️ Live 10-second turn timer with auto-skip</li>
+            <li>🔔 Chat sound notifications</li>
+            <li>👥 Direct friend invites to rooms</li>
+            <li>🔄 Rematch voting system</li>
+            <li>📊 Scoreboard with win/loss tracking</li>
+            <li>🎮 Smooth animations and glassmorphism UI</li>
           </ul>
         </div>
       </div>
@@ -271,6 +275,10 @@
       </div>
     </section>
   </main>
+
+  <footer style="text-align: center; padding: 20px; color: var(--muted); font-size: 14px;">
+    Made with ❤️ using Supabase & Modern Web Tech
+  </footer>
 
   <script type="module" src="app.js"></script>
 </body>

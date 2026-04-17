@@ -16,6 +16,7 @@ const profileModal = $("profileModal");
 const profileUsername = $("profileUsername");
 const profileDisplayName = $("profileDisplayName");
 const saveProfileBtn = $("saveProfileBtn");
+const soundToggleBtn = $("soundToggleBtn");
 
 const topAvatar = $("topAvatar");
 const topName = $("topName");
@@ -86,6 +87,7 @@ const sendChatBtn = $("sendChatBtn");
 // --------------------
 let playerId = getOrCreatePlayerId();
 let myProfile = null;
+let soundEnabled = localStorage.getItem("guess_duel_sound") !== "false"; // default true
 
 let currentRoom = null;
 let secrets = [];
@@ -229,6 +231,7 @@ function ensureAudio() {
 }
 
 function playChatSound() {
+  if (!soundEnabled) return;
   try {
     ensureAudio();
     const now = audioCtx.currentTime;
@@ -314,6 +317,10 @@ function renderProfile() {
   profileLosses.textContent = String(myProfile.losses || 0);
   hostName.value = myProfile.display_name;
   joinName.value = myProfile.display_name;
+
+  // Update sound button
+  soundToggleBtn.classList.toggle("muted", !soundEnabled);
+  soundToggleBtn.textContent = soundEnabled ? "🔊" : "🔇";
 }
 
 async function saveProfile() {
@@ -326,6 +333,7 @@ async function saveProfile() {
   }
 
   saveProfileBtn.disabled = true;
+  saveProfileBtn.textContent = "Saving...";
 
   try {
     const { data: existing } = await supabase
@@ -336,8 +344,17 @@ async function saveProfile() {
 
     if (existing && existing.player_id !== playerId) {
       showToast("Username already taken.", true);
+      saveProfileBtn.disabled = false;
+      saveProfileBtn.textContent = "Save Profile";
       return;
     }
+
+    // save locally first so popup feels instant
+    setCookie("guess_duel_username", username);
+    setCookie("guess_duel_display_name", displayName);
+
+    profileModal.classList.add("hidden");
+    showToast("Profile saved.");
 
     const payload = {
       player_id: playerId,
@@ -346,20 +363,21 @@ async function saveProfile() {
       is_online: true
     };
 
-    const { error } = await supabase.from("user_profiles").upsert(payload, { onConflict: "player_id" });
+    const { error } = await supabase
+      .from("user_profiles")
+      .upsert(payload, { onConflict: "player_id" });
 
     if (error) {
       showToast(error.message, true);
+      profileModal.classList.remove("hidden");
       return;
     }
 
-    setCookie("guess_duel_username", username);
-    setCookie("guess_duel_display_name", displayName);
     await reloadMyProfile();
-    profileModal.classList.add("hidden");
-    showToast("Profile saved.");
+    await loadHomeData();
   } finally {
     saveProfileBtn.disabled = false;
+    saveProfileBtn.textContent = "Save Profile";
   }
 }
 
@@ -1249,6 +1267,17 @@ secretInput.addEventListener("keydown", (e) => {
 });
 
 profileBtn.onclick = () => profileCard.classList.toggle("hidden");
+soundToggleBtn.onclick = () => {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem("guess_duel_sound", soundEnabled);
+  soundToggleBtn.classList.toggle("muted", !soundEnabled);
+  soundToggleBtn.textContent = soundEnabled ? "🔊" : "🔇";
+};
+
+// Initialize sound button
+soundToggleBtn.classList.toggle("muted", !soundEnabled);
+soundToggleBtn.textContent = soundEnabled ? "🔊" : "🔇";
+
 document.addEventListener("click", (e) => {
   if (!profileBtn.contains(e.target) && !profileCard.contains(e.target)) {
     profileCard.classList.add("hidden");
@@ -1269,6 +1298,15 @@ window.addEventListener("beforeunload", () => {
 async function init() {
   setHomeMode();
   subscribeHomeRealtime();
+
+  // show popup immediately if no saved cookie
+  const cookieUsername = getCookie("guess_duel_username");
+  const cookieDisplay = getCookie("guess_duel_display_name");
+
+  if (!cookieUsername || !cookieDisplay) {
+    profileModal.classList.remove("hidden");
+  }
+
   await ensureProfileBootstrapped();
   await reloadMyProfile();
   await loadHomeData();
