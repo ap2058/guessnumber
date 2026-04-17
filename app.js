@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = 'https://fmcmnwoopbmitqufaoys.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_6jC-frTceZf32cL3ZUAOqA_q5lGRM6K';
 
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const $ = (id) => document.getElementById(id);
@@ -33,6 +34,10 @@ const hostPlayerName = $('hostPlayerName');
 const guestPlayerName = $('guestPlayerName');
 const hostReady = $('hostReady');
 const guestReady = $('guestReady');
+const hostAvatar = $('hostAvatar');
+const guestAvatar = $('guestAvatar');
+const hostScore = $('hostScore');
+const guestScore = $('guestScore');
 
 const secretChooser = $('secretChooser');
 const guessPanel = $('guessPanel');
@@ -52,13 +57,21 @@ const chatMessages = $('chatMessages');
 const chatInput = $('chatInput');
 const sendChatBtn = $('sendChatBtn');
 
+const globalChatMessages = $('globalChatMessages');
+const globalChatInput = $('globalChatInput');
+const sendGlobalChatBtn = $('sendGlobalChatBtn');
+
 let playerId = getOrCreatePlayerId();
 let currentRoom = null;
 let secrets = [];
 let guesses = [];
 let messages = [];
+let globalMessages = [];
+let scores = [];
 let channel = null;
+let globalChannel = null;
 let poller = null;
+let globalPoller = null;
 let isLoadingRoom = false;
 
 function getOrCreatePlayerId() {
@@ -96,6 +109,11 @@ function generateRoomCode() {
   return out;
 }
 
+function getInitial(name) {
+  if (!name || !name.trim()) return '?';
+  return name.trim().charAt(0).toUpperCase();
+}
+
 function setHomeScreen() {
   homeScreen.classList.remove('hidden');
   gameScreen.classList.add('hidden');
@@ -111,7 +129,10 @@ function isHost() {
 }
 
 function getMyName() {
-  if (!currentRoom) return 'You';
+  if (!currentRoom) {
+    const homeName = hostName.value.trim() || joinName.value.trim();
+    return homeName || 'Player';
+  }
   return isHost() ? currentRoom.host_name : (currentRoom.guest_name || 'Guest');
 }
 
@@ -140,6 +161,11 @@ function getWinnerName() {
     : (currentRoom.guest_name || 'Guest');
 }
 
+function getScoreForPlayer(playerIdToFind) {
+  const row = scores.find((s) => s.player_id === playerIdToFind);
+  return row ? row.points : 0;
+}
+
 function resetPanels() {
   secretChooser.classList.add('hidden');
   guessPanel.classList.add('hidden');
@@ -150,6 +176,9 @@ function resetPanels() {
 function renderPlayers() {
   hostPlayerName.textContent = currentRoom.host_name;
   guestPlayerName.textContent = currentRoom.guest_name || 'Waiting...';
+
+  hostAvatar.textContent = getInitial(currentRoom.host_name);
+  guestAvatar.textContent = getInitial(currentRoom.guest_name || 'G');
 
   hostReady.textContent = secrets.some((s) => s.player_id === currentRoom.host_player_id)
     ? 'Secret locked'
@@ -162,6 +191,9 @@ function renderPlayers() {
       ? 'Secret locked'
       : 'Not ready';
   }
+
+  hostScore.textContent = String(getScoreForPlayer(currentRoom.host_player_id));
+  guestScore.textContent = String(currentRoom.guest_player_id ? getScoreForPlayer(currentRoom.guest_player_id) : 0);
 
   hostCard.classList.toggle('active', currentRoom.current_turn_player_id === currentRoom.host_player_id);
   guestCard.classList.toggle('active', currentRoom.current_turn_player_id === currentRoom.guest_player_id);
@@ -207,6 +239,22 @@ function renderMessages() {
   `).join('');
 
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function renderGlobalMessages() {
+  if (!globalMessages.length) {
+    globalChatMessages.innerHTML = '<div class="empty">No messages yet.</div>';
+    return;
+  }
+
+  globalChatMessages.innerHTML = globalMessages.map((m) => `
+    <div class="chatBubble ${m.player_id === playerId ? 'mine' : ''}">
+      <div class="chatName">${escapeHtml(m.player_name)}</div>
+      <div>${escapeHtml(m.content)}</div>
+    </div>
+  `).join('');
+
+  globalChatMessages.scrollTop = globalChatMessages.scrollHeight;
 }
 
 function renderHint() {
@@ -303,16 +351,29 @@ function render() {
   renderGameState();
 }
 
+async function loadGlobalChat() {
+  const { data, error } = await supabase
+    .from('global_messages')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (!error) {
+    globalMessages = data || [];
+    renderGlobalMessages();
+  }
+}
+
 async function loadRoomData(roomId) {
   if (isLoadingRoom) return;
   isLoadingRoom = true;
 
   try {
-    const [roomRes, secretsRes, guessesRes, messagesRes] = await Promise.all([
+    const [roomRes, secretsRes, guessesRes, messagesRes, scoresRes] = await Promise.all([
       supabase.from('rooms').select('*').eq('id', roomId).single(),
       supabase.from('secrets').select('*').eq('room_id', roomId),
       supabase.from('guesses').select('*').eq('room_id', roomId).order('created_at', { ascending: true }),
-      supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true })
+      supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true }),
+      supabase.from('scores').select('*').eq('room_id', roomId)
     ]);
 
     if (roomRes.error) {
@@ -324,6 +385,7 @@ async function loadRoomData(roomId) {
     secrets = secretsRes.data || [];
     guesses = guessesRes.data || [];
     messages = messagesRes.data || [];
+    scores = scoresRes.data || [];
 
     render();
   } finally {
@@ -347,6 +409,35 @@ function stopPolling() {
   }
 }
 
+function startGlobalPolling() {
+  stopGlobalPolling();
+  globalPoller = setInterval(() => {
+    loadGlobalChat();
+  }, 2000);
+}
+
+function stopGlobalPolling() {
+  if (globalPoller) {
+    clearInterval(globalPoller);
+    globalPoller = null;
+  }
+}
+
+async function subscribeToGlobalChat() {
+  if (globalChannel) {
+    await supabase.removeChannel(globalChannel);
+    globalChannel = null;
+  }
+
+  globalChannel = supabase
+    .channel('global-chat')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'global_messages' }, () => loadGlobalChat())
+    .subscribe();
+
+  startGlobalPolling();
+  await loadGlobalChat();
+}
+
 async function subscribeToRoom(roomId) {
   if (channel) {
     await supabase.removeChannel(channel);
@@ -359,9 +450,8 @@ async function subscribeToRoom(roomId) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'secrets', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'guesses', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
-    .subscribe((status) => {
-      console.log('Realtime status:', status);
-    });
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'scores', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
+    .subscribe();
 
   startPolling(roomId);
   await loadRoomData(roomId);
@@ -396,6 +486,12 @@ async function createRoom() {
       showNotice(error.message, true);
       return;
     }
+
+    await supabase.from('scores').insert({
+      room_id: data.id,
+      player_id: playerId,
+      points: 0
+    });
 
     await subscribeToRoom(data.id);
     showNotice('Room created. Share the code with your friend.');
@@ -450,6 +546,21 @@ async function joinRoom() {
       return;
     }
 
+    const { data: existingScore } = await supabase
+      .from('scores')
+      .select('*')
+      .eq('room_id', data.id)
+      .eq('player_id', playerId)
+      .maybeSingle();
+
+    if (!existingScore) {
+      await supabase.from('scores').insert({
+        room_id: data.id,
+        player_id: playerId,
+        points: 0
+      });
+    }
+
     await subscribeToRoom(data.id);
     await loadRoomData(data.id);
     showNotice('Joined room. Choose your secret number.');
@@ -502,11 +613,6 @@ async function saveSecret() {
     });
 
     if (error) {
-      if (error.message.includes('secrets_room_id_player_id_key')) {
-        showNotice('You already locked your secret number.', true);
-        await loadRoomData(currentRoom.id);
-        return;
-      }
       showNotice(error.message, true);
       return;
     }
@@ -545,6 +651,22 @@ async function saveSecret() {
       saveSecretBtn.disabled = false;
     }
   }
+}
+
+async function addPointToWinner(roomId, winnerPlayerId) {
+  const { data: scoreRow, error } = await supabase
+    .from('scores')
+    .select('*')
+    .eq('room_id', roomId)
+    .eq('player_id', winnerPlayerId)
+    .single();
+
+  if (error || !scoreRow) return;
+
+  await supabase
+    .from('scores')
+    .update({ points: scoreRow.points + 1 })
+    .eq('id', scoreRow.id);
 }
 
 async function makeGuess() {
@@ -619,6 +741,7 @@ async function makeGuess() {
         return;
       }
 
+      await addPointToWinner(currentRoom.id, playerId);
       showNotice('Correct guess. You won!');
     } else {
       const { error: turnError } = await supabase
@@ -673,6 +796,33 @@ async function sendMessage() {
   }
 }
 
+async function sendGlobalMessage() {
+  const content = globalChatInput.value.trim();
+  if (!content) return;
+
+  const playerName = hostName.value.trim() || joinName.value.trim() || getMyName();
+
+  sendGlobalChatBtn.disabled = true;
+
+  try {
+    const { error } = await supabase.from('global_messages').insert({
+      player_id: playerId,
+      player_name: playerName,
+      content
+    });
+
+    if (error) {
+      showNotice(error.message, true);
+      return;
+    }
+
+    globalChatInput.value = '';
+    await loadGlobalChat();
+  } finally {
+    sendGlobalChatBtn.disabled = false;
+  }
+}
+
 async function playAgain() {
   if (!currentRoom) return;
 
@@ -720,6 +870,7 @@ async function leaveRoom() {
   secrets = [];
   guesses = [];
   messages = [];
+  scores = [];
 
   setHomeScreen();
   hideNotice();
@@ -736,12 +887,17 @@ joinRoomBtn.addEventListener('click', joinRoom);
 saveSecretBtn.addEventListener('click', saveSecret);
 guessBtn.addEventListener('click', makeGuess);
 sendChatBtn.addEventListener('click', sendMessage);
+sendGlobalChatBtn.addEventListener('click', sendGlobalMessage);
 playAgainBtn.addEventListener('click', playAgain);
 leaveRoomBtn.addEventListener('click', leaveRoom);
 copyCodeBtn.addEventListener('click', copyCode);
 
 chatInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMessage();
+});
+
+globalChatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendGlobalMessage();
 });
 
 guessInput.addEventListener('keydown', (e) => {
@@ -757,3 +913,4 @@ joinCode.addEventListener('input', () => {
 });
 
 setHomeScreen();
+subscribeToGlobalChat();
