@@ -10,9 +10,55 @@
   <div class="bgGlow glow1"></div>
   <div class="bgGlow glow2"></div>
 
+  <div id="usernameModal" class="modalOverlay hidden">
+    <div class="modalCard">
+      <h2>Set Your Profile</h2>
+      <p class="modalText">Choose a username once. This will be saved in your browser cookie.</p>
+
+      <label for="profileUsername">Username</label>
+      <input id="profileUsername" type="text" maxlength="20" placeholder="aashish" />
+
+      <label for="profileDisplayName">Display name</label>
+      <input id="profileDisplayName" type="text" maxlength="20" placeholder="Aashish" />
+
+      <button id="saveProfileBtn" class="btn primary fullBtn">Save Profile</button>
+    </div>
+  </div>
+
   <main class="container">
     <section class="hero">
-      <div class="badge">2 Player Multiplayer • Host • Join • Chat • Score</div>
+      <div class="topProfileBar">
+        <div class="badge">2 Player Multiplayer • Friends • Invites • Global Chat</div>
+
+        <div id="profileMenu" class="profileMenu">
+          <button id="profileButton" class="profileButton">
+            <span id="profileAvatarTop" class="miniAvatar">U</span>
+            <span id="profileNameTop">Player</span>
+          </button>
+
+          <div id="profileHoverCard" class="profileHoverCard hidden">
+            <div class="profileCardTop">
+              <div id="profileAvatarLarge" class="largeAvatar">U</div>
+              <div>
+                <div id="profileDisplayNameText" class="profileDisplayName">Player</div>
+                <div id="profileUsernameText" class="profileUsername">@player</div>
+              </div>
+            </div>
+
+            <div class="profileStats">
+              <div class="statBox">
+                <div class="statLabel">Wins</div>
+                <div id="profileWins" class="statValue">0</div>
+              </div>
+              <div class="statBox">
+                <div class="statLabel">Losses</div>
+                <div id="profileLosses" class="statValue">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <h1>Guess Duel</h1>
       <p>
         Two players join one room, pick secret numbers, and take turns guessing.
@@ -48,6 +94,33 @@
             <input id="joinCode" type="text" maxlength="6" placeholder="ABC123" />
 
             <button id="joinRoomBtn" class="btn secondary fullBtn">Join Room</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sectionHeader">
+            <h2>Friends</h2>
+            <div class="miniStatus">Invite Players</div>
+          </div>
+
+          <div class="inline">
+            <input id="friendUsernameInput" type="text" maxlength="20" placeholder="Add friend by username" />
+            <button id="addFriendBtn" class="btn primary">Add Friend</button>
+          </div>
+
+          <div id="friendsList" class="listBox">
+            <div class="empty">No friends added yet.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sectionHeader">
+            <h2>Incoming Invites</h2>
+            <div class="miniStatus">Join Fast</div>
+          </div>
+
+          <div id="inviteList" class="listBox">
+            <div class="empty">No invites yet.</div>
           </div>
         </div>
       </div>
