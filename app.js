@@ -44,11 +44,17 @@ const friendsList = $("friendsList");
 const incomingFriendRequests = $("incomingFriendRequests");
 const outgoingFriendRequests = $("outgoingFriendRequests");
 const inviteList = $("inviteList");
+const gameFriendsList = $("gameFriendsList");
 
 const roomCodeText = $("roomCodeText");
 const statusBanner = $("statusBanner");
 const copyCodeBtn = $("copyCodeBtn");
 const leaveRoomBtn = $("leaveRoomBtn");
+const inviteFriendsBtn = $("inviteFriendsBtn");
+const summaryTurn = $("summaryTurn");
+const summaryOpponent = $("summaryOpponent");
+const summaryHostScore = $("summaryHostScore");
+const summaryGuestScore = $("summaryGuestScore");
 
 const hostCard = $("hostCard");
 const guestCard = $("guestCard");
@@ -64,6 +70,7 @@ const hostScore = $("hostScore");
 const guestScore = $("guestScore");
 
 const timerText = $("timerText");
+const timerRingProgress = $("timerRingProgress");
 const secretChooser = $("secretChooser");
 const guessPanel = $("guessPanel");
 const finishedPanel = $("finishedPanel");
@@ -426,25 +433,25 @@ async function loadFriends() {
 }
 
 function renderFriends() {
-  if (!friends.length) {
-    friendsList.innerHTML = `<div class="empty">No friends added yet.</div>`;
-    return;
-  }
-
-  friendsList.innerHTML = friends.map(f => `
-    <div class="item">
-      <div class="friendTop">
-        <div>
-          <strong>${escapeHtml(f.display_name)}</strong>
-          <div style="color:#9eb1d9;margin-top:4px;">@${escapeHtml(f.username)}</div>
+  const html = friends.length
+    ? friends.map(f => `
+      <div class="item">
+        <div class="friendTop">
+          <div>
+            <strong>${escapeHtml(f.display_name)}</strong>
+            <div style="color:#9eb1d9;margin-top:4px;">@${escapeHtml(f.username)}</div>
+          </div>
+          <div>${onlineMarkup(!!f.is_online)}</div>
         </div>
-        <div>${onlineMarkup(!!f.is_online)}</div>
+        <div class="friendActions">
+          <button class="btn btn-secondary friendInviteBtn" data-player="${f.player_id}">Invite to Room</button>
+        </div>
       </div>
-      <div class="friendActions">
-        <button class="btn btn-secondary friendInviteBtn" data-player="${f.player_id}">Invite to Room</button>
-      </div>
-    </div>
-  `).join("");
+    `).join("")
+    : `<div class="empty">No friends added yet.</div>`;
+
+  friendsList.innerHTML = html;
+  if (gameFriendsList) gameFriendsList.innerHTML = html;
 
   document.querySelectorAll(".friendInviteBtn").forEach(btn => {
     btn.onclick = () => inviteFriend(btn.dataset.player);
@@ -783,6 +790,19 @@ function renderRoom() {
   guestCard.classList.toggle("active", currentRoom.current_turn_player_id === currentRoom.guest_player_id);
   hostTurnBadge.classList.toggle("hidden", currentRoom.current_turn_player_id !== currentRoom.host_player_id);
   guestTurnBadge.classList.toggle("hidden", currentRoom.current_turn_player_id !== currentRoom.guest_player_id);
+  inviteFriendsBtn?.classList.toggle("hidden", !!currentRoom.guest_player_id);
+  if (summaryTurn) {
+    summaryTurn.textContent = !currentRoom.guest_player_id
+      ? "Waiting for opponent"
+      : currentRoom.winner_player_id
+        ? "Round finished"
+        : isMyTurn()
+          ? "Your turn"
+          : `${getOpponentName()}'s turn`;
+  }
+  if (summaryOpponent) summaryOpponent.textContent = getOpponentName();
+  if (summaryHostScore) summaryHostScore.textContent = String(getScore(currentRoom.host_player_id));
+  if (summaryGuestScore) summaryGuestScore.textContent = String(getScore(currentRoom.guest_player_id));
 
   renderStatusBanner();
   renderPanels();
@@ -1182,6 +1202,7 @@ function startTurnTimer() {
 
   if (!currentRoom || !bothSecretsChosen() || currentRoom.winner_player_id) {
     timerText.textContent = "--";
+    timerText.classList.remove("activeTimer", "urgentTimer");
     return;
   }
 
@@ -1190,9 +1211,24 @@ function startTurnTimer() {
     const now = Date.now();
     const left = Math.max(0, 10 - Math.floor((now - start) / 1000));
     timerText.textContent = `${left}s`;
+    timerText.classList.toggle("activeTimer", isMyTurn());
+    timerText.classList.toggle("urgentTimer", left <= 3 && left > 0);
+
+    if (timerRingProgress) {
+      const radius = 30;
+      const circumference = 2 * Math.PI * radius;
+      timerRingProgress.style.strokeDasharray = `${circumference} ${circumference}`;
+      timerRingProgress.style.strokeDashoffset = `${circumference * (1 - left / 10)}`;
+    }
 
     if (left <= 0) {
       clearTimer();
+      timerText.classList.remove("activeTimer", "urgentTimer");
+      if (timerRingProgress) {
+        const radius = 30;
+        const circumference = 2 * Math.PI * radius;
+        timerRingProgress.style.strokeDashoffset = `${circumference}`;
+      }
       if (isMyTurn()) handleTimeout();
     }
   };
@@ -1255,6 +1291,11 @@ guessBtn.onclick = makeGuess;
 sendChatBtn.onclick = sendChat;
 requestRematchBtn.onclick = requestRematch;
 playAgainBtn.onclick = startNewRound;
+inviteFriendsBtn?.addEventListener("click", () => {
+  if (gameFriendsList) {
+    gameFriendsList.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+});
 
 chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendChat();

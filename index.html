@@ -167,11 +167,9 @@
       <div class="topbar">
         <div class="roomTag">Room: <span id="roomCodeText">------</span></div>
         <div class="topbarActions">
-          <button id="copyCodeBtn" class="btn btn-ghost">Copy Code</button>
-          <button id="leaveRoomBtn" class="btn btn-danger">Leave</button>
-        </div>
-      </div>
-
+            <button id="inviteFriendsBtn" class="btn btn-secondary">Invite Friends</button>
+            <button id="copyCodeBtn" class="btn btn-ghost">Copy Code</button>
+            <button id="leaveRoomBtn" class="btn btn-danger">Leave</button>
       <div class="layout-game">
         <div class="leftCol">
           <div class="glass card">
@@ -216,7 +214,16 @@
           <div class="glass card">
             <div class="sectionHead">
               <h2>Game Panel</h2>
-              <span id="timerText" class="mini-pill">10s</span>
+              <div class="timerBadgeWrap">
+                <span id="timerText" class="timerBadge">10s</span>
+                <span class="timerNote">10-second turn limit</span>
+              </div>
+            </div>
+            <div class="timerRingWrap">
+              <svg class="timerRing" viewBox="0 0 72 72" aria-hidden="true">
+                <circle class="ringBg" cx="36" cy="36" r="30" />
+                <circle id="timerRingProgress" class="ringProgress" cx="36" cy="36" r="30" />
+              </svg>
             </div>
 
             <div id="secretChooser" class="panelBlock">
@@ -258,10 +265,27 @@
         </div>
 
         <div class="rightCol">
+          <div class="glass card summaryCard">
+            <div class="sectionHead">
+              <h2>Room Summary</h2>
+              <span class="mini-pill">quick view</span>
+            </div>
+            <div class="summaryGrid">
+              <div>Turn status</div>
+              <div id="summaryTurn" class="summaryValue">Waiting...</div>
+              <div>Opponent</div>
+              <div id="summaryOpponent" class="summaryValue">-</div>
+              <div>Host score</div>
+              <div id="summaryHostScore" class="summaryValue">0</div>
+              <div>Guest score</div>
+              <div id="summaryGuestScore" class="summaryValue">0</div>
+            </div>
+          </div>
+
           <div class="glass card">
             <div class="sectionHead">
-              <h2>Room Chat</h2>
-              <span class="mini-pill">live</span>
+              <h2>Invite Friends</h2>
+              <span class="mini-pill">room invite</span>
             </div>
 
             <div id="chatMessages" class="chatBox"></div>
