@@ -3,10 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = 'https://fmcmnwoopbmitqufaoys.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_6jC-frTceZf32cL3ZUAOqA_q5lGRM6K';
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const $ = (id) => document.getElementById(id);
 
@@ -31,6 +29,7 @@ const profileDisplayNameText = $('profileDisplayNameText');
 const profileUsernameText = $('profileUsernameText');
 const profileWins = $('profileWins');
 const profileLosses = $('profileLosses');
+const profileOnlineText = $('profileOnlineText');
 
 // Home form
 const hostName = $('hostName');
@@ -39,16 +38,13 @@ const joinCode = $('joinCode');
 const createRoomBtn = $('createRoomBtn');
 const joinRoomBtn = $('joinRoomBtn');
 
-// Friends + invites
+// Friends + requests + invites
 const friendUsernameInput = $('friendUsernameInput');
 const addFriendBtn = $('addFriendBtn');
 const friendsList = $('friendsList');
 const inviteList = $('inviteList');
-
-// Global chat
-const globalChatMessages = $('globalChatMessages');
-const globalChatInput = $('globalChatInput');
-const sendGlobalChatBtn = $('sendGlobalChatBtn');
+const incomingFriendRequests = $('incomingFriendRequests');
+const outgoingFriendRequests = $('outgoingFriendRequests');
 
 // Game topbar
 const copyCodeBtn = $('copyCodeBtn');
@@ -82,6 +78,8 @@ const guessBtn = $('guessBtn');
 const lastHint = $('lastHint');
 const winnerBanner = $('winnerBanner');
 const playAgainBtn = $('playAgainBtn');
+const requestRematchBtn = $('requestRematchBtn');
+const rematchBox = $('rematchBox');
 
 // History + room chat
 const historyList = $('historyList');
@@ -95,18 +93,28 @@ let currentRoom = null;
 let secrets = [];
 let guesses = [];
 let messages = [];
-let globalMessages = [];
 let scores = [];
 let myProfile = null;
 let friends = [];
 let invites = [];
+let incomingRequests = [];
+let outgoingRequests = [];
+let rematchRequests = [];
 
 let roomChannel = null;
-let globalChannel = null;
 let socialChannel = null;
 let roomPoller = null;
-let globalPoller = null;
+let socialPoller = null;
 let isLoadingRoom = false;
+
+// turn timer
+let turnInterval = null;
+let turnSecondsLeft = 10;
+let lastTurnKey = '';
+
+// audio
+let audioCtx = null;
+let hasUnlockedAudio = false;
 
 // ---------- Cookie helpers ----------
 function setCookie(name, value, days = 365) {
@@ -214,6 +222,83 @@ function getScoreForPlayer(playerIdToFind) {
   return row ? row.points : 0;
 }
 
+function onlineLabel(profile) {
+  return profile?.is_online ? 'Online' : 'Offline';
+}
+
+function onlineDot(profile) {
+  return `<span class="onlineDot ${profile?.is_online ? 'online' : 'offline'}"></span>`;
+}
+
+// ---------- Audio ----------
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  hasUnlockedAudio = true;
+}
+
+function playChatSound() {
+  try {
+    ensureAudio();
+    if (!audioCtx) return;
+
+    const now = audioCtx.currentTime;
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(740, now);
+    osc1.frequency.exponentialRampToValueAtTime(980, now + 0.08);
+
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(980, now + 0.09);
+    osc2.frequency.exponentialRampToValueAtTime(1240, now + 0.16);
+
+    gain1.gain.setValueAtTime(0.0001, now);
+    gain1.gain.exponentialRampToValueAtTime(0.03, now + 0.01);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+    gain2.gain.setValueAtTime(0.0001, now + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.025, now + 0.1);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+    osc1.connect(gain1).connect(audioCtx.destination);
+    osc2.connect(gain2).connect(audioCtx.destination);
+
+    osc1.start(now);
+    osc1.stop(now + 0.1);
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.19);
+  } catch (e) {
+    // ignore audio errors
+  }
+}
+
+function unlockAudioFromInteraction() {
+  try {
+    ensureAudio();
+  } catch (e) {
+    // ignore
+  }
+}
+
+// ---------- Presence ----------
+async function setPresenceOnline(isOnline) {
+  await supabase
+    .from('user_profiles')
+    .update({
+      is_online: isOnline,
+      last_seen_at: new Date().toISOString()
+    })
+    .eq('player_id', playerId);
+}
+
 // ---------- Profile ----------
 function renderProfile() {
   if (!myProfile) return;
@@ -226,6 +311,7 @@ function renderProfile() {
   profileUsernameText.textContent = '@' + myProfile.username;
   profileWins.textContent = String(myProfile.wins || 0);
   profileLosses.textContent = String(myProfile.losses || 0);
+  profileOnlineText.innerHTML = `${onlineDot(myProfile)}${onlineLabel(myProfile)}`;
 
   hostName.value = myProfile.display_name;
   joinName.value = myProfile.display_name;
@@ -256,7 +342,7 @@ async function saveProfile() {
   try {
     const { data: existingUsername } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('player_id')
       .eq('username', username)
       .maybeSingle();
 
@@ -267,7 +353,7 @@ async function saveProfile() {
 
     const { data: existingProfile } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('id')
       .eq('player_id', playerId)
       .maybeSingle();
 
@@ -276,7 +362,9 @@ async function saveProfile() {
         .from('user_profiles')
         .update({
           username,
-          display_name: displayName
+          display_name: displayName,
+          is_online: true,
+          last_seen_at: new Date().toISOString()
         })
         .eq('player_id', playerId);
     } else {
@@ -285,7 +373,9 @@ async function saveProfile() {
         username,
         display_name: displayName,
         wins: 0,
-        losses: 0
+        losses: 0,
+        is_online: true,
+        last_seen_at: new Date().toISOString()
       });
     }
 
@@ -302,25 +392,25 @@ async function saveProfile() {
 
 // ---------- Friends ----------
 async function loadFriends() {
-  const { data } = await supabase
+  const { data: links } = await supabase
     .from('friends')
-    .select('*')
+    .select('friend_player_id')
     .eq('player_id', playerId);
 
-  const rows = data || [];
-  const friendProfiles = [];
+  const friendIds = (links || []).map((x) => x.friend_player_id);
 
-  for (const row of rows) {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('player_id', row.friend_player_id)
-      .maybeSingle();
-
-    if (profile) friendProfiles.push(profile);
+  if (!friendIds.length) {
+    friends = [];
+    renderFriends();
+    return;
   }
 
-  friends = friendProfiles;
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .in('player_id', friendIds);
+
+  friends = profiles || [];
   renderFriends();
 }
 
@@ -332,8 +422,13 @@ function renderFriends() {
 
   friendsList.innerHTML = friends.map((f) => `
     <div class="historyItem">
-      <strong>${escapeHtml(f.display_name)}</strong>
-      <span style="color:#9fb2d9;"> @${escapeHtml(f.username)}</span>
+      <div class="friendRowTop">
+        <div>
+          <strong>${escapeHtml(f.display_name)}</strong>
+          <span style="color:#9fb2d9;"> @${escapeHtml(f.username)}</span>
+        </div>
+        <div class="friendStatusText">${onlineDot(f)}${onlineLabel(f)}</div>
+      </div>
       <div style="margin-top:10px;">
         <button class="btn primary inviteFriendBtn" data-player-id="${f.player_id}">
           Invite to Game
@@ -347,6 +442,7 @@ function renderFriends() {
   });
 }
 
+// ---------- Friend requests ----------
 async function addFriend() {
   const username = friendUsernameInput.value.trim().toLowerCase();
   if (!username) return;
@@ -359,42 +455,140 @@ async function addFriend() {
   addFriendBtn.disabled = true;
 
   try {
-    const { data: friendProfile } = await supabase
+    const { data: targetProfile } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('player_id, username, display_name')
       .eq('username', username)
       .maybeSingle();
 
-    if (!friendProfile) {
-      showNotice('Friend username not found.', true);
+    if (!targetProfile) {
+      showNotice('Username not found.', true);
       return;
     }
 
-    if (friendProfile.player_id === playerId) {
+    if (targetProfile.player_id === playerId) {
       showNotice('You cannot add yourself.', true);
       return;
     }
 
-    const { data: existing } = await supabase
+    const { data: existingFriend } = await supabase
       .from('friends')
-      .select('*')
+      .select('id')
       .eq('player_id', playerId)
-      .eq('friend_player_id', friendProfile.player_id)
+      .eq('friend_player_id', targetProfile.player_id)
       .maybeSingle();
 
-    if (!existing) {
-      await supabase.from('friends').insert({
-        player_id: playerId,
-        friend_player_id: friendProfile.player_id
-      });
+    if (existingFriend) {
+      showNotice('Already friends.', true);
+      return;
     }
 
+    const { data: existingRequest } = await supabase
+      .from('friend_requests')
+      .select('id,status')
+      .eq('from_player_id', playerId)
+      .eq('to_player_id', targetProfile.player_id)
+      .maybeSingle();
+
+    if (existingRequest && existingRequest.status === 'pending') {
+      showNotice('Friend request already sent.', true);
+      return;
+    }
+
+    await supabase.from('friend_requests').upsert({
+      from_player_id: playerId,
+      from_username: myProfile.username,
+      to_player_id: targetProfile.player_id,
+      status: 'pending'
+    });
+
     friendUsernameInput.value = '';
-    await loadFriends();
-    showNotice('Friend added.');
+    await loadFriendRequests();
+    showNotice('Friend request sent.');
   } finally {
     addFriendBtn.disabled = false;
   }
+}
+
+async function loadFriendRequests() {
+  const [incomingRes, outgoingRes] = await Promise.all([
+    supabase
+      .from('friend_requests')
+      .select('*')
+      .eq('to_player_id', playerId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('friend_requests')
+      .select('*')
+      .eq('from_player_id', playerId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+  ]);
+
+  incomingRequests = incomingRes.data || [];
+  outgoingRequests = outgoingRes.data || [];
+
+  renderFriendRequests();
+}
+
+function renderFriendRequests() {
+  if (!incomingRequests.length) {
+    incomingFriendRequests.innerHTML = '<div class="empty">No requests yet.</div>';
+  } else {
+    incomingFriendRequests.innerHTML = incomingRequests.map((req) => `
+      <div class="historyItem">
+        <strong>@${escapeHtml(req.from_username)}</strong> sent you a friend request
+        <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn secondary acceptFriendBtn" data-id="${req.id}" data-from="${req.from_player_id}">Accept</button>
+          <button class="btn danger declineFriendBtn" data-id="${req.id}">Decline</button>
+        </div>
+      </div>
+    `).join('');
+
+    document.querySelectorAll('.acceptFriendBtn').forEach((btn) => {
+      btn.addEventListener('click', () => acceptFriendRequest(btn.dataset.id, btn.dataset.from));
+    });
+
+    document.querySelectorAll('.declineFriendBtn').forEach((btn) => {
+      btn.addEventListener('click', () => declineFriendRequest(btn.dataset.id));
+    });
+  }
+
+  if (!outgoingRequests.length) {
+    outgoingFriendRequests.innerHTML = '<div class="empty">No outgoing requests.</div>';
+  } else {
+    outgoingFriendRequests.innerHTML = outgoingRequests.map((req) => `
+      <div class="historyItem">
+        Friend request sent
+        <div style="color:#9fb2d9;margin-top:8px;">Waiting for approval</div>
+      </div>
+    `).join('');
+  }
+}
+
+async function acceptFriendRequest(requestId, fromPlayerId) {
+  await supabase
+    .from('friend_requests')
+    .update({ status: 'accepted' })
+    .eq('id', requestId);
+
+  await supabase.from('friends').insert([
+    { player_id: playerId, friend_player_id: fromPlayerId },
+    { player_id: fromPlayerId, friend_player_id: playerId }
+  ]);
+
+  await Promise.all([loadFriendRequests(), loadFriends()]);
+  showNotice('Friend request accepted.');
+}
+
+async function declineFriendRequest(requestId) {
+  await supabase
+    .from('friend_requests')
+    .update({ status: 'declined' })
+    .eq('id', requestId);
+
+  await loadFriendRequests();
 }
 
 // ---------- Invites ----------
@@ -442,12 +636,8 @@ function renderInvites() {
     <div class="historyItem">
       <strong>@${escapeHtml(inv.from_username)}</strong> invited you to room <strong>${escapeHtml(inv.room_code)}</strong>
       <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="btn secondary acceptInviteBtn" data-id="${inv.id}" data-room="${inv.room_code}">
-          Accept
-        </button>
-        <button class="btn danger declineInviteBtn" data-id="${inv.id}">
-          Decline
-        </button>
+        <button class="btn secondary acceptInviteBtn" data-id="${inv.id}" data-room="${inv.room_code}">Accept</button>
+        <button class="btn danger declineInviteBtn" data-id="${inv.id}">Decline</button>
       </div>
     </div>
   `).join('');
@@ -482,67 +672,104 @@ async function declineInvite(inviteId) {
   await loadInvites();
 }
 
-// ---------- Global chat ----------
-function renderGlobalMessages() {
-  if (!globalMessages.length) {
-    globalChatMessages.innerHTML = '<div class="empty">No messages yet.</div>';
-    return;
-  }
-
-  globalChatMessages.innerHTML = globalMessages.map((m) => `
-    <div class="chatBubble ${m.player_id === playerId ? 'mine' : ''}">
-      <div class="chatName">${escapeHtml(m.player_name)}</div>
-      <div>${escapeHtml(m.content)}</div>
-    </div>
-  `).join('');
-
-  globalChatMessages.scrollTop = globalChatMessages.scrollHeight;
-}
-
-async function loadGlobalChat() {
-  const { data, error } = await supabase
-    .from('global_messages')
-    .select('*')
-    .order('created_at', { ascending: true });
-
-  if (!error) {
-    globalMessages = data || [];
-    renderGlobalMessages();
-  }
-}
-
-async function sendGlobalMessage() {
-  const content = globalChatInput.value.trim();
-  if (!content) return;
-
-  const playerName = myProfile?.display_name || hostName.value.trim() || joinName.value.trim() || 'Player';
-
-  sendGlobalChatBtn.disabled = true;
-  try {
-    const { error } = await supabase.from('global_messages').insert({
-      player_id: playerId,
-      player_name: playerName,
-      content
-    });
-
-    if (error) {
-      showNotice(error.message, true);
-      return;
-    }
-
-    globalChatInput.value = '';
-    await loadGlobalChat();
-  } finally {
-    sendGlobalChatBtn.disabled = false;
-  }
-}
-
 // ---------- Game rendering ----------
 function resetPanels() {
   secretChooser.classList.add('hidden');
   guessPanel.classList.add('hidden');
   finishedPanel.classList.add('hidden');
   lastHint.classList.add('hidden');
+  rematchBox.classList.add('hidden');
+}
+
+function stopTurnTimer() {
+  if (turnInterval) {
+    clearInterval(turnInterval);
+    turnInterval = null;
+  }
+}
+
+async function timeoutCurrentTurn() {
+  if (!currentRoom || currentRoom.status !== 'playing') return;
+
+  const currentTurnPlayer = currentRoom.current_turn_player_id;
+  if (!currentTurnPlayer) return;
+
+  const nextPlayer =
+    currentTurnPlayer === currentRoom.host_player_id
+      ? currentRoom.guest_player_id
+      : currentRoom.host_player_id;
+
+  if (!nextPlayer) return;
+
+  await supabase
+    .from('rooms')
+    .update({
+      current_turn_player_id: nextPlayer
+    })
+    .eq('id', currentRoom.id);
+
+  showNotice('Time is up. Turn switched automatically.');
+}
+
+function startTurnTimerIfNeeded() {
+  stopTurnTimer();
+
+  if (!currentRoom || currentRoom.status !== 'playing') return;
+  if (!currentRoom.current_turn_player_id) return;
+
+  const turnKey = `${currentRoom.id}:${currentRoom.current_turn_player_id}:${currentRoom.status}`;
+  if (lastTurnKey !== turnKey) {
+    turnSecondsLeft = 10;
+    lastTurnKey = turnKey;
+  }
+
+  turnInterval = setInterval(async () => {
+    if (!currentRoom || currentRoom.status !== 'playing') {
+      stopTurnTimer();
+      return;
+    }
+
+    turnSecondsLeft -= 1;
+
+    if (turnSecondsLeft <= 0) {
+      stopTurnTimer();
+      turnSecondsLeft = 0;
+      updateStatusBannerText();
+      await timeoutCurrentTurn();
+      return;
+    }
+
+    updateStatusBannerText();
+  }, 1000);
+}
+
+function updateStatusBannerText() {
+  if (!currentRoom) return;
+
+  if (currentRoom.status === 'waiting') {
+    statusPill.textContent = 'Waiting for Player';
+    return;
+  }
+
+  if (currentRoom.status === 'choosing') {
+    statusPill.textContent = mySecretChosen()
+      ? 'Secret Locked • Waiting Opponent'
+      : 'Choose Your Secret Number';
+    return;
+  }
+
+  if (currentRoom.status === 'playing') {
+    if (isMyTurn()) {
+      statusPill.textContent = `Your Turn • ${turnSecondsLeft}s left`;
+    } else {
+      statusPill.textContent = `${getOpponentName()} Turn • ${turnSecondsLeft}s left`;
+    }
+    return;
+  }
+
+  if (currentRoom.status === 'finished') {
+    statusPill.textContent = `${getWinnerName()} Won the Round`;
+  }
 }
 
 function renderPlayers() {
@@ -636,6 +863,40 @@ function renderHint() {
   }
 }
 
+function renderRematchBox() {
+  if (currentRoom?.status !== 'finished') return;
+
+  const opponentId = getOpponentId();
+  const incoming = rematchRequests.find((r) => r.to_player_id === playerId && r.status === 'pending');
+  const outgoing = rematchRequests.find((r) => r.from_player_id === playerId && r.status === 'pending');
+
+  if (incoming) {
+    rematchBox.classList.remove('hidden');
+    rematchBox.innerHTML = `
+      Opponent requested a rematch.
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="acceptRematchBtn" class="btn secondary">Accept Rematch</button>
+        <button id="declineRematchBtn" class="btn danger">Decline</button>
+      </div>
+    `;
+    $('acceptRematchBtn').addEventListener('click', () => acceptRematch(incoming.id));
+    $('declineRematchBtn').addEventListener('click', () => declineRematch(incoming.id));
+    requestRematchBtn.disabled = true;
+    return;
+  }
+
+  if (outgoing) {
+    rematchBox.classList.remove('hidden');
+    rematchBox.textContent = 'Rematch request sent. Waiting for opponent.';
+    requestRematchBtn.disabled = true;
+    return;
+  }
+
+  if (opponentId) {
+    requestRematchBtn.disabled = false;
+  }
+}
+
 function renderGameState() {
   resetPanels();
   renderPlayers();
@@ -644,18 +905,15 @@ function renderGameState() {
   renderHint();
 
   roomCodeText.textContent = currentRoom.room_code;
+  updateStatusBannerText();
 
   if (currentRoom.status === 'waiting') {
-    statusPill.textContent = 'Waiting for Player';
     gameMessage.textContent = 'Waiting for another player to join the room.';
+    stopTurnTimer();
     return;
   }
 
   if (currentRoom.status === 'choosing') {
-    statusPill.textContent = mySecretChosen()
-      ? 'Secret Locked • Waiting Opponent'
-      : 'Choose Your Secret Number';
-
     if (!mySecretChosen()) {
       gameMessage.textContent = 'Choose your secret number from 1 to 100.';
       secretChooser.classList.remove('hidden');
@@ -667,55 +925,60 @@ function renderGameState() {
       saveSecretBtn.disabled = true;
       secretInput.disabled = true;
     }
+    stopTurnTimer();
     return;
   }
 
   if (currentRoom.status === 'playing') {
     guessPanel.classList.remove('hidden');
+    startTurnTimerIfNeeded();
 
     if (isMyTurn()) {
-      statusPill.textContent = 'Your Turn to Guess';
       gameMessage.textContent = `Your turn. Guess ${getOpponentName()}'s number.`;
       guessInput.disabled = false;
       guessBtn.disabled = false;
     } else {
-      statusPill.textContent = `${getOpponentName()} Is Guessing`;
       gameMessage.textContent = `${getOpponentName()} is taking their turn.`;
       guessInput.disabled = true;
       guessBtn.disabled = true;
     }
+
     return;
   }
 
   if (currentRoom.status === 'finished') {
-    statusPill.textContent = `${getWinnerName()} Won the Round`;
+    stopTurnTimer();
     gameMessage.textContent = `${getWinnerName()} guessed correctly.`;
     finishedPanel.classList.remove('hidden');
     winnerBanner.textContent = `Winner: ${getWinnerName()}`;
+    renderRematchBox();
   }
 }
 
 function render() {
   if (!currentRoom) {
     setHomeScreen();
+    stopTurnTimer();
     return;
   }
+
   setGameScreen();
   renderGameState();
 }
 
-// ---------- Game data loading ----------
+// ---------- Room data loading ----------
 async function loadRoomData(roomId) {
   if (isLoadingRoom) return;
   isLoadingRoom = true;
 
   try {
-    const [roomRes, secretsRes, guessesRes, messagesRes, scoresRes] = await Promise.all([
+    const [roomRes, secretsRes, guessesRes, messagesRes, scoresRes, rematchRes] = await Promise.all([
       supabase.from('rooms').select('*').eq('id', roomId).single(),
       supabase.from('secrets').select('*').eq('room_id', roomId),
       supabase.from('guesses').select('*').eq('room_id', roomId).order('created_at', { ascending: true }),
       supabase.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true }),
-      supabase.from('scores').select('*').eq('room_id', roomId)
+      supabase.from('scores').select('*').eq('room_id', roomId),
+      supabase.from('rematch_requests').select('*').eq('room_id', roomId)
     ]);
 
     if (roomRes.error) {
@@ -728,6 +991,7 @@ async function loadRoomData(roomId) {
     guesses = guessesRes.data || [];
     messages = messagesRes.data || [];
     scores = scoresRes.data || [];
+    rematchRequests = rematchRes.data || [];
 
     render();
   } finally {
@@ -735,12 +999,44 @@ async function loadRoomData(roomId) {
   }
 }
 
+async function loadRoomMessagesOnly(roomId) {
+  const previousCount = messages.length;
+
+  const { data } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+
+  messages = data || [];
+  renderMessages();
+
+  const newest = messages[messages.length - 1];
+  if (messages.length > previousCount && newest && newest.player_id !== playerId && hasUnlockedAudio) {
+    playChatSound();
+  }
+}
+
+async function loadRoomGuessesOnly(roomId) {
+  const { data } = await supabase
+    .from('guesses')
+    .select('*')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+
+  guesses = data || [];
+  renderHistory();
+  renderHint();
+}
+
 // ---------- Polling / subscriptions ----------
 function startRoomPolling(roomId) {
   stopRoomPolling();
   roomPoller = setInterval(() => {
-    if (currentRoom?.id === roomId) loadRoomData(roomId);
-  }, 2000);
+    if (currentRoom?.id === roomId) {
+      loadRoomData(roomId);
+    }
+  }, 5000);
 }
 
 function stopRoomPolling() {
@@ -750,35 +1046,21 @@ function stopRoomPolling() {
   }
 }
 
-function startGlobalPolling() {
-  stopGlobalPolling();
-  globalPoller = setInterval(() => {
-    loadGlobalChat();
-    loadInvites();
+function startSocialPolling() {
+  stopSocialPolling();
+  socialPoller = setInterval(() => {
+    loadMyProfile();
     loadFriends();
-  }, 2500);
+    loadFriendRequests();
+    loadInvites();
+  }, 12000);
 }
 
-function stopGlobalPolling() {
-  if (globalPoller) {
-    clearInterval(globalPoller);
-    globalPoller = null;
+function stopSocialPolling() {
+  if (socialPoller) {
+    clearInterval(socialPoller);
+    socialPoller = null;
   }
-}
-
-async function subscribeToGlobalChat() {
-  if (globalChannel) {
-    await supabase.removeChannel(globalChannel);
-    globalChannel = null;
-  }
-
-  globalChannel = supabase
-    .channel('global-chat')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'global_messages' }, () => loadGlobalChat())
-    .subscribe();
-
-  await loadGlobalChat();
-  startGlobalPolling();
 }
 
 async function subscribeSocialRealtime() {
@@ -790,12 +1072,15 @@ async function subscribeSocialRealtime() {
   socialChannel = supabase
     .channel('social-updates')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => loadFriends())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => loadFriendRequests())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'game_invites' }, () => loadInvites())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, async () => {
-      await loadMyProfile();
-      await loadFriends();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
+      loadMyProfile();
+      loadFriends();
     })
     .subscribe();
+
+  startSocialPolling();
 }
 
 async function subscribeToRoom(roomId) {
@@ -808,9 +1093,10 @@ async function subscribeToRoom(roomId) {
     .channel(`room-${roomId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, () => loadRoomData(roomId))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'secrets', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'guesses', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'guesses', filter: `room_id=eq.${roomId}` }, () => loadRoomGuessesOnly(roomId))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, () => loadRoomMessagesOnly(roomId))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'scores', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rematch_requests', filter: `room_id=eq.${roomId}` }, () => loadRoomData(roomId))
     .subscribe();
 
   await loadRoomData(roomId);
@@ -820,6 +1106,7 @@ async function subscribeToRoom(roomId) {
 // ---------- Room lifecycle ----------
 async function createRoom() {
   hideNotice();
+  unlockAudioFromInteraction();
 
   if (!myProfile) {
     showNotice('Save your profile first.', true);
@@ -855,7 +1142,7 @@ async function createRoom() {
 
     const { data: existingScore } = await supabase
       .from('scores')
-      .select('*')
+      .select('id')
       .eq('room_id', data.id)
       .eq('player_id', playerId)
       .maybeSingle();
@@ -877,6 +1164,7 @@ async function createRoom() {
 
 async function joinRoom() {
   hideNotice();
+  unlockAudioFromInteraction();
 
   if (!myProfile) {
     showNotice('Save your profile first.', true);
@@ -928,7 +1216,7 @@ async function joinRoom() {
 
     const { data: existingScore } = await supabase
       .from('scores')
-      .select('*')
+      .select('id')
       .eq('room_id', data.id)
       .eq('player_id', playerId)
       .maybeSingle();
@@ -942,7 +1230,6 @@ async function joinRoom() {
     }
 
     await subscribeToRoom(data.id);
-    await loadRoomData(data.id);
     showNotice('Joined room. Choose your secret number.');
   } finally {
     joinRoomBtn.disabled = false;
@@ -956,12 +1243,16 @@ async function leaveRoom() {
   }
 
   stopRoomPolling();
+  stopTurnTimer();
 
   currentRoom = null;
   secrets = [];
   guesses = [];
   messages = [];
   scores = [];
+  rematchRequests = [];
+  lastTurnKey = '';
+  turnSecondsLeft = 10;
 
   setHomeScreen();
   hideNotice();
@@ -985,7 +1276,6 @@ async function saveSecret() {
 
   if (mySecretChosen()) {
     showNotice('You already locked your secret number.', true);
-    await loadRoomData(currentRoom.id);
     return;
   }
 
@@ -994,14 +1284,13 @@ async function saveSecret() {
   try {
     const { data: existingSecret } = await supabase
       .from('secrets')
-      .select('*')
+      .select('id')
       .eq('room_id', currentRoom.id)
       .eq('player_id', playerId)
       .maybeSingle();
 
     if (existingSecret) {
       showNotice('You already locked your secret number.', true);
-      await loadRoomData(currentRoom.id);
       return;
     }
 
@@ -1018,7 +1307,7 @@ async function saveSecret() {
 
     const { data: roomSecrets } = await supabase
       .from('secrets')
-      .select('*')
+      .select('id')
       .eq('room_id', currentRoom.id);
 
     if (roomSecrets && roomSecrets.length === 2) {
@@ -1035,15 +1324,17 @@ async function saveSecret() {
         showNotice(updateError.message, true);
         return;
       }
+
+      lastTurnKey = '';
+      turnSecondsLeft = 10;
+    } else {
+      await loadRoomData(currentRoom.id);
     }
 
     secretInput.value = '';
-    await loadRoomData(currentRoom.id);
     showNotice('Your number is locked.');
   } finally {
-    if (currentRoom?.status === 'choosing' && !mySecretChosen()) {
-      saveSecretBtn.disabled = false;
-    }
+    saveSecretBtn.disabled = false;
   }
 }
 
@@ -1128,7 +1419,7 @@ async function makeGuess() {
 
     const { data: oppSecret, error: oppSecretError } = await supabase
       .from('secrets')
-      .select('*')
+      .select('secret_number')
       .eq('room_id', currentRoom.id)
       .eq('player_id', oppId)
       .single();
@@ -1142,6 +1433,18 @@ async function makeGuess() {
     if (num < oppSecret.secret_number) result = 'higher';
     if (num > oppSecret.secret_number) result = 'lower';
 
+    guesses.push({
+      id: 'temp-' + Date.now(),
+      room_id: currentRoom.id,
+      guesser_player_id: playerId,
+      target_player_id: oppId,
+      guessed_number: num,
+      result,
+      created_at: new Date().toISOString()
+    });
+    renderHistory();
+    renderHint();
+
     const { error: guessError } = await supabase.from('guesses').insert({
       room_id: currentRoom.id,
       guesser_player_id: playerId,
@@ -1152,8 +1455,11 @@ async function makeGuess() {
 
     if (guessError) {
       showNotice(guessError.message, true);
+      await loadRoomGuessesOnly(currentRoom.id);
       return;
     }
+
+    stopTurnTimer();
 
     if (result === 'correct') {
       const { error: finishError } = await supabase
@@ -1185,15 +1491,14 @@ async function makeGuess() {
         return;
       }
 
+      turnSecondsLeft = 10;
+      lastTurnKey = '';
       showNotice(result === 'higher' ? 'Higher.' : 'Lower.');
     }
 
     guessInput.value = '';
-    await loadRoomData(currentRoom.id);
   } finally {
-    if (currentRoom?.status === 'playing' && isMyTurn()) {
-      guessBtn.disabled = false;
-    }
+    guessBtn.disabled = false;
   }
 }
 
@@ -1206,23 +1511,88 @@ async function sendMessage() {
   sendChatBtn.disabled = true;
 
   try {
+    const playerName = getMyName();
+
+    messages.push({
+      id: 'temp-' + Date.now(),
+      room_id: currentRoom.id,
+      player_id: playerId,
+      player_name: playerName,
+      content
+    });
+    renderMessages();
+
     const { error } = await supabase.from('messages').insert({
       room_id: currentRoom.id,
       player_id: playerId,
-      player_name: getMyName(),
+      player_name: playerName,
       content
     });
 
     if (error) {
       showNotice(error.message, true);
+      await loadRoomMessagesOnly(currentRoom.id);
       return;
     }
 
     chatInput.value = '';
-    await loadRoomData(currentRoom.id);
   } finally {
     sendChatBtn.disabled = false;
   }
+}
+
+// ---------- Rematch ----------
+async function requestRematch() {
+  if (!currentRoom || currentRoom.status !== 'finished') return;
+
+  const opponentId = getOpponentId();
+  if (!opponentId) return;
+
+  await supabase.from('rematch_requests').upsert({
+    room_id: currentRoom.id,
+    from_player_id: playerId,
+    to_player_id: opponentId,
+    status: 'pending'
+  });
+
+  await loadRoomData(currentRoom.id);
+}
+
+async function acceptRematch(rematchId) {
+  await supabase
+    .from('rematch_requests')
+    .update({ status: 'accepted' })
+    .eq('id', rematchId);
+
+  const roomId = currentRoom.id;
+
+  await supabase.from('secrets').delete().eq('room_id', roomId);
+  await supabase.from('guesses').delete().eq('room_id', roomId);
+  await supabase.from('rematch_requests').delete().eq('room_id', roomId);
+
+  await supabase
+    .from('rooms')
+    .update({
+      status: 'choosing',
+      current_turn_player_id: null,
+      winner_player_id: null
+    })
+    .eq('id', roomId);
+
+  lastTurnKey = '';
+  turnSecondsLeft = 10;
+
+  await loadRoomData(roomId);
+  showNotice('Rematch started.');
+}
+
+async function declineRematch(rematchId) {
+  await supabase
+    .from('rematch_requests')
+    .update({ status: 'declined' })
+    .eq('id', rematchId);
+
+  await loadRoomData(currentRoom.id);
 }
 
 async function playAgain() {
@@ -1242,6 +1612,8 @@ async function playAgain() {
     return;
   }
 
+  await supabase.from('rematch_requests').delete().eq('room_id', roomId);
+
   const { error: updateError } = await supabase
     .from('rooms')
     .update({
@@ -1255,6 +1627,9 @@ async function playAgain() {
     showNotice(updateError.message, true);
     return;
   }
+
+  lastTurnKey = '';
+  turnSecondsLeft = 10;
 
   await loadRoomData(roomId);
   showNotice('New round started. Choose a new secret number.');
@@ -1274,10 +1649,10 @@ async function initProfileGate() {
     usernameModal.classList.remove('hidden');
   } else {
     usernameModal.classList.add('hidden');
+    await setPresenceOnline(true);
   }
 
-  await loadFriends();
-  await loadInvites();
+  await Promise.all([loadFriends(), loadFriendRequests(), loadInvites()]);
 }
 
 function wireProfileHover() {
@@ -1310,16 +1685,12 @@ leaveRoomBtn.addEventListener('click', leaveRoom);
 saveSecretBtn.addEventListener('click', saveSecret);
 guessBtn.addEventListener('click', makeGuess);
 playAgainBtn.addEventListener('click', playAgain);
+requestRematchBtn.addEventListener('click', requestRematch);
 
 sendChatBtn.addEventListener('click', sendMessage);
-sendGlobalChatBtn.addEventListener('click', sendGlobalMessage);
 
 chatInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMessage();
-});
-
-globalChatInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendGlobalMessage();
 });
 
 guessInput.addEventListener('keydown', (e) => {
@@ -1334,9 +1705,29 @@ joinCode.addEventListener('input', () => {
   joinCode.value = joinCode.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 });
 
+// unlock audio on common interactions
+['click', 'keydown', 'touchstart'].forEach((evt) => {
+  window.addEventListener(evt, unlockAudioFromInteraction, { once: true });
+});
+
+window.addEventListener('beforeunload', () => {
+  stopTurnTimer();
+  if (myProfile) {
+    navigator.sendBeacon?.(
+      `${SUPABASE_URL}/rest/v1/user_profiles?player_id=eq.${encodeURIComponent(playerId)}`,
+      new Blob(
+        [JSON.stringify({ is_online: false, last_seen_at: new Date().toISOString() })],
+        { type: 'application/json' }
+      )
+    );
+  }
+});
+
 // ---------- Boot ----------
 setHomeScreen();
 wireProfileHover();
-initProfileGate();
-subscribeToGlobalChat();
-subscribeSocialRealtime();
+
+Promise.all([
+  initProfileGate(),
+  subscribeSocialRealtime()
+]);

@@ -777,3 +777,40 @@ button {
     margin-top: 10px;
   }
 }
+.profileOnlineText {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #9fb2d9;
+  font-weight: 800;
+}
+
+.onlineDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.onlineDot.online {
+  background: #34d399;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.35);
+}
+
+.onlineDot.offline {
+  background: #94a3b8;
+}
+
+.friendRowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.friendStatusText {
+  font-size: 12px;
+  font-weight: 800;
+  color: #dbeafe;
+}

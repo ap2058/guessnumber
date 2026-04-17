@@ -28,7 +28,7 @@
   <main class="container">
     <section class="hero">
       <div class="topProfileBar">
-        <div class="badge">2 Player Multiplayer • Friends • Invites • Global Chat</div>
+        <div class="badge">2 Player Multiplayer • Friends • Invites • Rematch</div>
 
         <div id="profileMenu" class="profileMenu">
           <button id="profileButton" class="profileButton">
@@ -42,6 +42,7 @@
               <div>
                 <div id="profileDisplayNameText" class="profileDisplayName">Player</div>
                 <div id="profileUsernameText" class="profileUsername">@player</div>
+                <div id="profileOnlineText" class="profileOnlineText">Offline</div>
               </div>
             </div>
 
@@ -100,16 +101,40 @@
         <div class="card">
           <div class="sectionHeader">
             <h2>Friends</h2>
-            <div class="miniStatus">Invite Players</div>
+            <div class="miniStatus">Online + Invite</div>
           </div>
 
           <div class="inline">
-            <input id="friendUsernameInput" type="text" maxlength="20" placeholder="Add friend by username" />
-            <button id="addFriendBtn" class="btn primary">Add Friend</button>
+            <input id="friendUsernameInput" type="text" maxlength="20" placeholder="Send friend request by username" />
+            <button id="addFriendBtn" class="btn primary">Request</button>
           </div>
 
           <div id="friendsList" class="listBox">
             <div class="empty">No friends added yet.</div>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <div class="sectionHeader">
+              <h2>Incoming Requests</h2>
+              <div class="miniStatus">Friends</div>
+            </div>
+
+            <div id="incomingFriendRequests" class="listBox">
+              <div class="empty">No requests yet.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="sectionHeader">
+              <h2>Outgoing Requests</h2>
+              <div class="miniStatus">Friends</div>
+            </div>
+
+            <div id="outgoingFriendRequests" class="listBox">
+              <div class="empty">No outgoing requests.</div>
+            </div>
           </div>
         </div>
 
@@ -126,20 +151,19 @@
       </div>
 
       <div class="rightCol">
-        <div class="card chatCard">
+        <div class="card rulesCard">
           <div class="sectionHeader">
-            <h2>Global Chat</h2>
-            <span class="tag live">Lobby</span>
+            <h2>Social Features</h2>
+            <div class="miniStatus">New</div>
           </div>
 
-          <div id="globalChatMessages" class="listBox chatBox">
-            <div class="empty">No messages yet.</div>
-          </div>
-
-          <div class="inline">
-            <input id="globalChatInput" type="text" maxlength="300" placeholder="Share code or message..." />
-            <button id="sendGlobalChatBtn" class="btn secondary">Send</button>
-          </div>
+          <ul class="rules">
+            <li>Send friend requests by username.</li>
+            <li>See online status for friends.</li>
+            <li>Invite friends directly to your room.</li>
+            <li>Accept or decline room invites.</li>
+            <li>Use rematch approval after a round ends.</li>
+          </ul>
         </div>
       </div>
     </section>
@@ -233,7 +257,13 @@
 
             <div id="finishedPanel" class="panel hidden">
               <div id="winnerBanner" class="winnerBanner">Winner: -</div>
-              <button id="playAgainBtn" class="btn secondary">Play Again</button>
+
+              <div class="inline" style="margin-top: 14px;">
+                <button id="playAgainBtn" class="btn secondary">Play Again</button>
+                <button id="requestRematchBtn" class="btn primary">Request Rematch</button>
+              </div>
+
+              <div id="rematchBox" class="hint hidden" style="margin-top:14px;"></div>
             </div>
           </div>
 
