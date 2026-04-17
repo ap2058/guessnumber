@@ -1,70 +1,98 @@
 :root {
-  --bg: #09111f;
-  --bg2: #10192d;
-  --card: #131c2f;
-  --card2: #18243a;
+  --bg: #07101f;
+  --bg2: #0d1830;
+  --card: rgba(19, 28, 47, 0.88);
+  --card2: rgba(24, 36, 58, 0.95);
   --text: #eef4ff;
-  --muted: #a8b8d8;
-  --line: #2a3956;
-  --blue: #4f8cff;
+  --muted: #9fb2d9;
+  --line: rgba(120, 146, 196, 0.18);
+  --blue: #60a5fa;
+  --blue2: #3b82f6;
   --purple: #8b5cf6;
+  --purple2: #a78bfa;
   --green: #34d399;
+  --green2: #10b981;
   --red: #fb7185;
   --yellow: #fbbf24;
+  --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   line-height: 1.5;
-  background: linear-gradient(180deg, var(--bg), var(--bg2));
   color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(59,130,246,0.20), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(139,92,246,0.18), transparent 25%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  min-height: 100vh;
 }
 
 .container {
-  width: min(1150px, calc(100% - 24px));
+  width: min(1180px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 24px 0 40px;
+  padding: 28px 0 50px;
 }
 
 .hero {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .hero h1 {
-  margin: 12px 0 8px;
-  font-size: clamp(2rem, 5vw, 4rem);
-  line-height: 1.1;
+  margin: 14px 0 10px;
+  font-size: clamp(2.3rem, 5vw, 4.6rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .hero p {
-  margin: 0;
+  margin: 0 auto;
   color: var(--muted);
-  max-width: 1000px;
-  margin-inline: auto;
+  max-width: 950px;
+  font-size: 1.18rem;
+  line-height: 1.7;
+}
+
+.hero strong {
+  color: #ffffff;
 }
 
 .badge {
-  display: inline-block;
-  background: rgba(79, 140, 255, 0.12);
-  border: 1px solid rgba(79, 140, 255, 0.32);
-  color: #cfe0ff;
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  color: #dbeafe;
+  padding: 10px 16px;
   border-radius: 999px;
   font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.14);
 }
 
 .notice {
   margin-bottom: 18px;
-  padding: 14px 16px;
-  border: 1px solid #36528a;
-  background: rgba(79, 140, 255, 0.12);
-  border-radius: 14px;
+  padding: 18px 20px;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: rgba(59, 130, 246, 0.12);
+  border-radius: 18px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #eff6ff;
+  box-shadow: var(--shadow);
 }
 
 .hidden {
@@ -73,7 +101,7 @@ body {
 
 .grid {
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .two {
@@ -81,58 +109,91 @@ body {
 }
 
 .gameLayout {
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 1.3fr 0.7fr;
   align-items: start;
 }
 
 .leftCol,
 .rightCol {
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 18px;
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 35%);
+  pointer-events: none;
 }
 
 .card h2 {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   line-height: 1.2;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 label {
   display: block;
-  margin: 14px 0 8px;
+  margin: 15px 0 8px;
   font-size: 14px;
+  color: #d9e7ff;
+  font-weight: 600;
 }
 
 input {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--card2);
+  padding: 14px 15px;
+  border-radius: 16px;
+  border: 1px solid rgba(132, 156, 204, 0.18);
+  background: rgba(24, 36, 58, 0.88);
   color: var(--text);
   font-size: 15px;
+  outline: none;
+  transition: 0.2s ease;
 }
 
 input::placeholder {
   color: #8ea2c9;
 }
 
+input:focus {
+  border-color: rgba(96, 165, 250, 0.65);
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.12);
+  transform: translateY(-1px);
+}
+
 button {
   border: 0;
   cursor: pointer;
   font-size: 14px;
+  transition: 0.18s ease;
 }
 
 .btn {
-  padding: 12px 15px;
-  border-radius: 12px;
-  font-weight: 700;
+  padding: 13px 18px;
+  border-radius: 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
 .btn.primary {
@@ -141,13 +202,14 @@ button {
 }
 
 .btn.secondary {
-  background: linear-gradient(135deg, var(--purple), #c084fc);
+  background: linear-gradient(135deg, var(--purple), var(--purple2));
   color: white;
 }
 
 .btn.ghost {
-  background: #22314f;
-  color: white;
+  background: rgba(96, 165, 250, 0.14);
+  color: #eff6ff;
+  border: 1px solid rgba(96, 165, 250, 0.16);
 }
 
 .btn.danger {
@@ -156,36 +218,40 @@ button {
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.58;
   cursor: not-allowed;
+  transform: none;
 }
 
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 14px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
 .roomCode {
-  background: var(--card);
+  background: rgba(19, 28, 47, 0.92);
   border: 1px solid var(--line);
-  padding: 12px 14px;
-  border-radius: 14px;
-  font-weight: 700;
+  padding: 14px 18px;
+  border-radius: 18px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #ffffff;
+  box-shadow: var(--shadow);
 }
 
 .topbarActions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .between {
@@ -193,99 +259,134 @@ button {
 }
 
 .playersTitleRow {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .playerGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-  margin-top: 6px;
+  gap: 16px;
+  margin-top: 10px;
 }
 
 .playerCard {
-  background: var(--card2);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px;
-  min-height: 128px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 35%),
+    rgba(24, 36, 58, 0.96);
+  border: 1px solid rgba(132, 156, 204, 0.14);
+  border-radius: 22px;
+  padding: 18px;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  transition: 0.18s ease;
 }
 
 .playerCard.active {
-  border-color: #5d8fff;
-  box-shadow: inset 0 0 0 1px rgba(79, 140, 255, 0.35);
+  border-color: rgba(52, 211, 153, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(52, 211, 153, 0.18),
+    0 0 0 3px rgba(52, 211, 153, 0.08);
+  transform: translateY(-2px);
 }
 
 .tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
   font-size: 12px;
-  font-weight: 700;
-  padding: 6px 10px;
+  font-weight: 800;
+  padding: 7px 12px;
   border-radius: 999px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .tag.host {
-  background: rgba(79, 140, 255, 0.14);
-  color: #cfe0ff;
+  background: rgba(96, 165, 250, 0.16);
+  color: #dbeafe;
+  border: 1px solid rgba(96, 165, 250, 0.20);
 }
 
 .tag.guest {
-  background: rgba(139, 92, 246, 0.15);
-  color: #ddd0ff;
+  background: rgba(167, 139, 250, 0.16);
+  color: #ede9fe;
+  border: 1px solid rgba(167, 139, 250, 0.20);
 }
 
 .tag.live {
-  background: rgba(52, 211, 153, 0.14);
-  color: #b7f5df;
+  background: rgba(52, 211, 153, 0.16);
+  color: #d1fae5;
+  border: 1px solid rgba(52, 211, 153, 0.20);
 }
 
 .turnBadge {
-  background: rgba(52, 211, 153, 0.15);
-  color: #b9f5e0;
-  padding: 5px 10px;
+  background: linear-gradient(135deg, rgba(52,211,153,0.22), rgba(16,185,129,0.18));
+  color: #d1fae5;
+  padding: 8px 14px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 900;
+  border: 1px solid rgba(52, 211, 153, 0.30);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.06);
+  text-transform: uppercase;
 }
 
 .playerName {
-  margin-top: 14px;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.2;
+  margin-top: 16px;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.05;
   word-break: break-word;
+  color: #ffffff;
+  letter-spacing: -0.02em;
 }
 
 .subText {
-  margin-top: 10px;
+  margin-top: 12px;
   color: var(--muted);
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 600;
 }
 
 .pill {
-  background: rgba(251, 191, 36, 0.15);
-  color: #ffe08a;
+  background: linear-gradient(135deg, rgba(251,191,36,0.18), rgba(245,158,11,0.13));
+  color: #fff0c2;
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 10px 15px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 900;
   white-space: nowrap;
+  border: 1px solid rgba(251, 191, 36, 0.24);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .gameMessage {
-  color: #dfe9ff;
-  line-height: 1.6;
-  margin-bottom: 8px;
+  color: #f3f7ff;
+  line-height: 1.65;
+  margin-bottom: 6px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .panel {
-  margin-top: 14px;
+  margin-top: 18px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(132, 156, 204, 0.10);
+  border-radius: 18px;
+  padding: 16px;
 }
 
 .inline {
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  align-items: center;
 }
 
 .inline input {
@@ -293,21 +394,24 @@ button {
 }
 
 .hint {
-  margin-top: 12px;
-  background: var(--card2);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-weight: 700;
+  margin-top: 14px;
+  background: rgba(96, 165, 250, 0.10);
+  border: 1px solid rgba(96, 165, 250, 0.20);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-weight: 800;
+  font-size: 15px;
+  color: #e0edff;
 }
 
 .winnerBanner {
-  background: rgba(52, 211, 153, 0.12);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  color: #c6f7e8;
-  padding: 16px;
-  border-radius: 14px;
-  font-weight: 800;
+  background: linear-gradient(135deg, rgba(52,211,153,0.18), rgba(96,165,250,0.14));
+  border: 1px solid rgba(52, 211, 153, 0.26);
+  color: #ecfdf5;
+  padding: 18px;
+  border-radius: 16px;
+  font-weight: 900;
+  font-size: 1.1rem;
   margin-bottom: 14px;
 }
 
@@ -315,49 +419,94 @@ button {
   max-height: 360px;
   overflow-y: auto;
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  padding-right: 4px;
 }
 
 .chatBox {
-  min-height: 260px;
+  min-height: 300px;
 }
 
 .historyItem,
 .chatBubble {
-  background: var(--card2);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px 14px;
-  line-height: 1.6;
+  background: rgba(24, 36, 58, 0.90);
+  border: 1px solid rgba(132, 156, 204, 0.12);
+  border-radius: 16px;
+  padding: 14px 16px;
+  line-height: 1.65;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.historyItem strong,
+.chatBubble strong {
+  color: #ffffff;
 }
 
 .chatBubble.mine {
-  background: rgba(79, 140, 255, 0.12);
-  border-color: rgba(79, 140, 255, 0.3);
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.24);
 }
 
 .chatName {
   font-size: 12px;
-  color: #cfe0ff;
-  font-weight: 700;
+  color: #dbeafe;
+  font-weight: 800;
   margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .empty {
   color: var(--muted);
+  font-size: 15px;
 }
 
 .rules {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 20px;
   color: #dbe6ff;
-  line-height: 1.8;
+  line-height: 1.9;
+  font-size: 15px;
 }
 
-@media (max-width: 900px) {
+.rules li + li {
+  margin-top: 6px;
+}
+
+@media (max-width: 980px) {
+  .gameLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
   .two,
-  .gameLayout,
   .playerGrid {
     grid-template-columns: 1fr;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .gameMessage {
+    font-size: 1.1rem;
+  }
+
+  .playerName {
+    font-size: 1.6rem;
+  }
+
+  .inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbarActions {
+    width: 100%;
+  }
+
+  .topbarActions .btn {
+    flex: 1;
   }
 }
