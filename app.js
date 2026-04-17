@@ -242,13 +242,15 @@ function renderGameState() {
   roomCodeText.textContent = currentRoom.room_code;
 
   if (currentRoom.status === 'waiting') {
-    statusPill.textContent = 'Waiting';
+    statusPill.textContent = 'Waiting for Player';
     gameMessage.textContent = 'Waiting for another player to join the room.';
     return;
   }
 
   if (currentRoom.status === 'choosing') {
-    statusPill.textContent = 'Choosing';
+    statusPill.textContent = mySecretChosen()
+      ? 'Secret Locked • Waiting Opponent'
+      : 'Choose Your Secret Number';
 
     if (!mySecretChosen()) {
       gameMessage.textContent = 'Choose your secret number from 1 to 100.';
@@ -266,14 +268,15 @@ function renderGameState() {
   }
 
   if (currentRoom.status === 'playing') {
-    statusPill.textContent = 'Playing';
     guessPanel.classList.remove('hidden');
 
     if (isMyTurn()) {
+      statusPill.textContent = 'Your Turn to Guess';
       gameMessage.textContent = `Your turn. Guess ${getOpponentName()}'s number.`;
       guessInput.disabled = false;
       guessBtn.disabled = false;
     } else {
+      statusPill.textContent = `${getOpponentName()} Is Guessing`;
       gameMessage.textContent = `${getOpponentName()} is taking their turn.`;
       guessInput.disabled = true;
       guessBtn.disabled = true;
@@ -283,7 +286,7 @@ function renderGameState() {
   }
 
   if (currentRoom.status === 'finished') {
-    statusPill.textContent = 'Finished';
+    statusPill.textContent = `${getWinnerName()} Won the Round`;
     gameMessage.textContent = `${getWinnerName()} guessed correctly.`;
     finishedPanel.classList.remove('hidden');
     winnerBanner.textContent = `Winner: ${getWinnerName()}`;

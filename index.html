@@ -7,12 +7,12 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="bg-orb orb-1"></div>
-  <div class="bg-orb orb-2"></div>
+  <div class="bgGlow glow1"></div>
+  <div class="bgGlow glow2"></div>
 
   <main class="container">
     <section class="hero">
-      <div class="hero-badge">Multiplayer • Host • Join • Chat</div>
+      <div class="badge">2 Player Multiplayer • Host • Join • Chat</div>
       <h1>Guess Duel</h1>
       <p>
         Two players join one room, pick secret numbers, and take turns guessing.
@@ -23,133 +23,146 @@
     <section id="notice" class="notice hidden"></section>
 
     <section id="homeScreen" class="grid two">
-      <div class="card glow">
-        <h2>Host a Room</h2>
-        <p class="muted">Create a room and share the code with your friend.</p>
+      <div class="card homeCard blueGlow">
+        <div class="cardTopLine blue"></div>
+        <h2>Host Room</h2>
+        <p class="cardDesc">Create a room and share the code with your friend.</p>
 
-        <label>Your name</label>
-        <input id="hostName" type="text" placeholder="Enter your name" maxlength="20" />
+        <label for="hostName">Your name</label>
+        <input id="hostName" type="text" maxlength="20" placeholder="Enter your name" />
 
-        <button id="createRoomBtn" class="btn primary">Create Room</button>
+        <button id="createRoomBtn" class="btn primary fullBtn">Create Room</button>
       </div>
 
-      <div class="card">
-        <h2>Join a Room</h2>
-        <p class="muted">Enter the room code from the host.</p>
+      <div class="card homeCard purpleGlow">
+        <div class="cardTopLine purple"></div>
+        <h2>Join Room</h2>
+        <p class="cardDesc">Enter the room code and jump straight into the match.</p>
 
-        <label>Your name</label>
-        <input id="joinName" type="text" placeholder="Enter your name" maxlength="20" />
+        <label for="joinName">Your name</label>
+        <input id="joinName" type="text" maxlength="20" placeholder="Enter your name" />
 
-        <label>Room code</label>
-        <input id="joinCode" type="text" placeholder="ABC123" maxlength="6" class="uppercase" />
+        <label for="joinCode">Room code</label>
+        <input id="joinCode" type="text" maxlength="6" placeholder="ABC123" />
 
-        <button id="joinRoomBtn" class="btn secondary">Join Room</button>
+        <button id="joinRoomBtn" class="btn secondary fullBtn">Join Room</button>
       </div>
     </section>
 
     <section id="gameScreen" class="hidden">
-      <div class="topbar">
-        <div class="room-chip">
-          Room: <span id="roomCodeText">------</span>
-        </div>
+      <div class="turnCenterWrap">
+        <div id="statusPill" class="turnCenterBanner">Waiting</div>
+      </div>
 
-        <div class="topbar-actions">
-          <button id="copyCodeBtn" class="btn ghost small">Copy Code</button>
-          <button id="leaveRoomBtn" class="btn danger small">Leave</button>
+      <div class="topbar">
+        <div class="roomCode">Room: <span id="roomCodeText">------</span></div>
+        <div class="topbarActions">
+          <button id="copyCodeBtn" class="btn ghost">Copy Code</button>
+          <button id="leaveRoomBtn" class="btn danger">Leave</button>
         </div>
       </div>
 
-      <div class="grid game-layout">
-        <div class="left-column">
-          <div class="card glass">
-            <div class="players-header">
+      <div class="grid gameLayout">
+        <div class="leftCol">
+          <div class="card playersCard">
+            <div class="sectionHeader">
               <h2>Players</h2>
-              <div id="statusPill" class="status-pill">Waiting</div>
+              <div class="miniStatus">Live Match</div>
             </div>
 
-            <div class="player-grid">
-              <div id="hostCard" class="player-card">
-                <div class="player-top">
-                  <span class="role host">Host</span>
-                  <span id="hostTurnBadge" class="turn-badge hidden">Turn</span>
+            <div class="playerGrid">
+              <div id="hostCard" class="playerCard hostPanel">
+                <div class="playerTop">
+                  <span class="tag host">Host</span>
+                  <span id="hostTurnBadge" class="turnBadge hidden">Your Turn</span>
                 </div>
-                <div id="hostPlayerName" class="player-name">-</div>
-                <div id="hostReady" class="ready-badge">Not ready</div>
+                <div id="hostPlayerName" class="playerName">-</div>
+                <div id="hostReady" class="subText">Not ready</div>
               </div>
 
-              <div id="guestCard" class="player-card">
-                <div class="player-top">
-                  <span class="role guest">Guest</span>
-                  <span id="guestTurnBadge" class="turn-badge hidden">Turn</span>
+              <div id="guestCard" class="playerCard guestPanel">
+                <div class="playerTop">
+                  <span class="tag guest">Guest</span>
+                  <span id="guestTurnBadge" class="turnBadge hidden">Your Turn</span>
                 </div>
-                <div id="guestPlayerName" class="player-name">Waiting...</div>
-                <div id="guestReady" class="ready-badge">Not joined</div>
+                <div id="guestPlayerName" class="playerName">Waiting...</div>
+                <div id="guestReady" class="subText">Not joined</div>
               </div>
             </div>
           </div>
 
-          <div class="card highlight">
-            <h2>Game Panel</h2>
-            <div id="gameMessage" class="game-message">
-              Waiting for players...
+          <div class="card gamePanelCard">
+            <div class="sectionHeader">
+              <h2>Game Panel</h2>
+              <div class="miniStatus">Guess Battle</div>
             </div>
 
+            <div id="gameMessage" class="gameMessage">Waiting for players...</div>
+
             <div id="secretChooser" class="panel hidden">
-              <label>Choose your secret number (1 - 100)</label>
+              <label for="secretInput">Choose your secret number (1 to 100)</label>
               <div class="inline">
-                <input id="secretInput" type="number" min="1" max="100" placeholder="e.g. 42" />
+                <input id="secretInput" type="number" min="1" max="100" placeholder="42" />
                 <button id="saveSecretBtn" class="btn primary">Lock Number</button>
               </div>
             </div>
 
             <div id="guessPanel" class="panel hidden">
-              <label>Guess your opponent's number</label>
+              <label for="guessInput">Guess your opponent's number</label>
               <div class="inline">
                 <input id="guessInput" type="number" min="1" max="100" placeholder="Enter guess" />
                 <button id="guessBtn" class="btn primary">Guess</button>
               </div>
-              <div id="lastHint" class="hint-box hidden"></div>
+              <div id="lastHint" class="hint hidden"></div>
             </div>
 
             <div id="finishedPanel" class="panel hidden">
-              <div id="winnerBanner" class="winner-banner">Winner: -</div>
+              <div id="winnerBanner" class="winnerBanner">Winner: -</div>
               <button id="playAgainBtn" class="btn secondary">Play Again</button>
             </div>
           </div>
 
           <div class="card">
-            <h2>Guess History</h2>
-            <div id="historyList" class="history-list">
+            <div class="sectionHeader">
+              <h2>Guess History</h2>
+              <div class="miniStatus">Round Log</div>
+            </div>
+
+            <div id="historyList" class="listBox">
               <div class="empty">No guesses yet.</div>
             </div>
           </div>
         </div>
 
-        <div class="right-column">
-          <div class="card chat-card">
-            <div class="chat-head">
+        <div class="rightCol">
+          <div class="card chatCard">
+            <div class="sectionHeader">
               <h2>Room Chat</h2>
-              <div class="chat-live">Live</div>
+              <span class="tag live">Live</span>
             </div>
 
-            <div id="chatMessages" class="chat-messages">
+            <div id="chatMessages" class="listBox chatBox">
               <div class="empty">No messages yet.</div>
             </div>
 
-            <div class="chat-form">
-              <input id="chatInput" type="text" placeholder="Type message..." maxlength="300" />
+            <div class="inline">
+              <input id="chatInput" type="text" maxlength="300" placeholder="Type message" />
               <button id="sendChatBtn" class="btn secondary">Send</button>
             </div>
           </div>
 
-          <div class="card tips">
-            <h2>How it works</h2>
-            <ul>
+          <div class="card rulesCard">
+            <div class="sectionHeader">
+              <h2>Rules</h2>
+              <div class="miniStatus">Quick Guide</div>
+            </div>
+
+            <ul class="rules">
               <li>Host creates room and shares code.</li>
-              <li>Guest joins using the room code.</li>
-              <li>Both choose a secret number from 1 to 100.</li>
-              <li>Take turns guessing.</li>
-              <li>Hints are only: higher, lower, or correct.</li>
+              <li>Guest joins with the code.</li>
+              <li>Both lock one secret number.</li>
+              <li>Host starts first.</li>
+              <li>Hints are only higher, lower, or correct.</li>
             </ul>
           </div>
         </div>
