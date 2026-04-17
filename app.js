@@ -518,7 +518,7 @@ async function saveSecret() {
       return;
     }
 
-    if (roomSecrets.length >= 2) {
+    if (roomSecrets.length === 2) {
       const { error: updateError } = await supabase
         .from('rooms')
         .update({

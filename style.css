@@ -1,7 +1,8 @@
 :root {
-  --bg: #0b1220;
+  --bg: #09111f;
+  --bg2: #10192d;
   --card: #131c2f;
-  --card-2: #18243a;
+  --card2: #18243a;
   --text: #eef4ff;
   --muted: #a8b8d8;
   --line: #2a3956;
@@ -19,7 +20,8 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: linear-gradient(180deg, #09111f, #10192d);
+  line-height: 1.5;
+  background: linear-gradient(180deg, var(--bg), var(--bg2));
   color: var(--text);
 }
 
@@ -37,11 +39,14 @@ body {
 .hero h1 {
   margin: 12px 0 8px;
   font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1.1;
 }
 
 .hero p {
   margin: 0;
   color: var(--muted);
+  max-width: 1000px;
+  margin-inline: auto;
 }
 
 .badge {
@@ -77,6 +82,7 @@ body {
 
 .gameLayout {
   grid-template-columns: 1.2fr 0.8fr;
+  align-items: start;
 }
 
 .leftCol,
@@ -93,7 +99,8 @@ body {
 }
 
 .card h2 {
-  margin-top: 0;
+  margin: 0 0 12px;
+  line-height: 1.2;
 }
 
 label {
@@ -107,13 +114,19 @@ input {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: var(--card-2);
+  background: var(--card2);
   color: var(--text);
+  font-size: 15px;
+}
+
+input::placeholder {
+  color: #8ea2c9;
 }
 
 button {
   border: 0;
   cursor: pointer;
+  font-size: 14px;
 }
 
 .btn {
@@ -140,6 +153,11 @@ button {
 .btn.danger {
   background: linear-gradient(135deg, #ef4444, var(--red));
   color: white;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .topbar {
@@ -174,15 +192,23 @@ button {
   justify-content: space-between;
 }
 
+.playersTitleRow {
+  margin-bottom: 12px;
+}
+
 .playerGrid {
-  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 6px;
 }
 
 .playerCard {
-  background: var(--card-2);
+  background: var(--card2);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 14px;
+  padding: 16px;
+  min-height: 128px;
 }
 
 .playerCard.active {
@@ -224,14 +250,17 @@ button {
 
 .playerName {
   margin-top: 14px;
-  font-size: 1.2rem;
+  font-size: 24px;
   font-weight: 700;
+  line-height: 1.2;
+  word-break: break-word;
 }
 
 .subText {
   margin-top: 10px;
   color: var(--muted);
   font-size: 14px;
+  line-height: 1.4;
 }
 
 .pill {
@@ -241,6 +270,7 @@ button {
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .gameMessage {
@@ -264,7 +294,7 @@ button {
 
 .hint {
   margin-top: 12px;
-  background: var(--card-2);
+  background: var(--card2);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px 14px;
@@ -288,12 +318,17 @@ button {
   gap: 10px;
 }
 
+.chatBox {
+  min-height: 260px;
+}
+
 .historyItem,
 .chatBubble {
-  background: var(--card-2);
+  background: var(--card2);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px 14px;
+  line-height: 1.6;
 }
 
 .chatBubble.mine {
